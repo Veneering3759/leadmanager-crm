@@ -9,22 +9,39 @@ const Badge = ({ children }) => (
 );
 
 export default function Leads() {
-  // IMPORTANT: env var already includes /api
-  const API = import.meta.env.VITE_API_URL;
+  // Accept either:
+  //   VITE_API_URL = "https://...onrender.com"
+  // or
+  //   VITE_API_URL = "https://...onrender.com/api"
+  const RAW = (import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
+  const API = RAW ? (RAW.endsWith("/api") ? RAW : `${RAW}/api`) : "";
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
+
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [viewLead, setViewLead] = useState(null);
 
   async function loadLeads() {
     setLoading(true);
+
     try {
+      if (!API) {
+        throw new Error(
+          "Missing VITE_API_URL. Set it in Vercel Project → Settings → Environment Variables."
+        );
+      }
+
       const res = await fetch(`${API}/leads`);
-      if (!res.ok) throw new Error("Failed to fetch leads");
-      const data = await res.json();
-      setLeads(data);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Request failed: ${res.status}`);
+      }
+
+      const fresh = await res.json();
+      setLeads(Array.isArray(fresh) ? fresh : []);
     } catch (err) {
       console.error(err);
       alert("Failed to load leads from server.");
@@ -35,10 +52,12 @@ export default function Leads() {
 
   useEffect(() => {
     loadLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+
     return leads.filter((row) => {
       const matchesQuery =
         !q ||
@@ -46,11 +65,14 @@ export default function Leads() {
         (row.email || "").toLowerCase().includes(q);
 
       const matchesStatus = status === "all" || row.status === status;
+
       return matchesQuery && matchesStatus;
     });
   }, [query, status, leads]);
 
   async function updateLeadStatus(id, nextStatus) {
+    if (!API) throw new Error("Missing API base URL");
+
     const res = await fetch(`${API}/leads/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -67,9 +89,16 @@ export default function Leads() {
   }
 
   async function convertLead(id) {
+    if (!API) throw new Error("Missing API base URL");
+
     const res = await fetch(`${API}/leads/${id}/convert`, { method: "POST" });
-    if (!res.ok) throw new Error("Convert failed");
-    loadLeads();
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "Convert failed");
+    }
+
+    // Reload list
+    await loadLeads();
   }
 
   if (loading) {
@@ -89,6 +118,11 @@ export default function Leads() {
           <p className="mt-1 text-sm text-slate-500">
             Search + filters = instant “this is real” feeling.
           </p>
+          {!API && (
+            <p className="mt-2 text-sm text-red-600">
+              Missing VITE_API_URL (check Vercel env vars + redeploy).
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -143,20 +177,25 @@ export default function Leads() {
                   {row.name}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{row.email}</td>
+
                 <td className="px-4 py-3">
                   <Badge>{row.status}</Badge>
                 </td>
+
                 <td className="px-4 py-3">
                   <Badge>{row.source || "website"}</Badge>
                 </td>
+
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
                     <select
                       value={row.status}
                       onChange={async (e) => {
+                        const nextStatus = e.target.value;
                         try {
-                          await updateLeadStatus(row._id, e.target.value);
-                        } catch {
+                          await updateLeadStatus(row._id, nextStatus);
+                        } catch (err) {
+                          console.error(err);
                           alert("Could not update status.");
                         }
                       }}
@@ -176,7 +215,14 @@ export default function Leads() {
                     </button>
 
                     <button
-                      onClick={() => convertLead(row._id)}
+                      onClick={async () => {
+                        try {
+                          await convertLead(row._id);
+                        } catch (err) {
+                          console.error(err);
+                          alert("Convert failed.");
+                        }
+                      }}
                       className="rounded-xl bg-slate-900 px-3 py-1 text-white"
                     >
                       Convert
@@ -212,6 +258,27 @@ export default function Leads() {
               >
                 Close
               </button>
+            </div>
+
+            <div className="mt-4 space-y-2 text-sm">
+              <div>
+                <div className="text-slate-500">Business</div>
+                <div className="font-medium">{viewLead.business || "—"}</div>
+              </div>
+
+              <div>
+                <div className="text-slate-500">Message</div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  {viewLead.message || "—"}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">Status:</span>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">
+                  {viewLead.status}
+                </span>
+              </div>
             </div>
           </div>
         </div>
