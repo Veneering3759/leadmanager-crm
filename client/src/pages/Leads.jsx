@@ -8,13 +8,30 @@ const Badge = ({ children }) => (
   </span>
 );
 
+function getApiBase() {
+  // You can set VITE_API_URL as:
+  // 1) https://crm-dashboard-olqp.onrender.com
+  // OR
+  // 2) https://crm-dashboard-olqp.onrender.com/api
+  //
+  // This function normalizes so we ALWAYS end up with ".../api"
+  const raw = (import.meta.env.VITE_API_URL || "").trim();
+
+  // Local dev fallback (optional, but helpful)
+  const fallback = "http://localhost:5000/api";
+
+  const base = (raw || fallback).replace(/\/+$/, ""); // remove trailing slashes
+  return base.endsWith("/api") ? base : `${base}/api`;
+}
+
+async function jsonOrThrow(res) {
+  if (res.ok) return res.json();
+  const text = await res.text().catch(() => "");
+  throw new Error(text || `Request failed (${res.status})`);
+}
+
 export default function Leads() {
-  // Accept either:
-  //   VITE_API_URL = "https://...onrender.com"
-  // or
-  //   VITE_API_URL = "https://...onrender.com/api"
-  const RAW = (import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
-  const API = RAW ? (RAW.endsWith("/api") ? RAW : `${RAW}/api`) : "";
+  const API = getApiBase();
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -26,24 +43,12 @@ export default function Leads() {
 
   async function loadLeads() {
     setLoading(true);
-
     try {
-      if (!API) {
-        throw new Error(
-          "Missing VITE_API_URL. Set it in Vercel Project → Settings → Environment Variables."
-        );
-      }
-
       const res = await fetch(`${API}/leads`);
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Request failed: ${res.status}`);
-      }
-
-      const fresh = await res.json();
+      const fresh = await jsonOrThrow(res);
       setLeads(Array.isArray(fresh) ? fresh : []);
     } catch (err) {
-      console.error(err);
+      console.error("Load leads failed:", err);
       alert("Failed to load leads from server.");
     } finally {
       setLoading(false);
@@ -71,34 +76,24 @@ export default function Leads() {
   }, [query, status, leads]);
 
   async function updateLeadStatus(id, nextStatus) {
-    if (!API) throw new Error("Missing API base URL");
-
     const res = await fetch(`${API}/leads/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: nextStatus }),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || "Status update failed");
-    }
-
-    const updated = await res.json();
+    const updated = await jsonOrThrow(res);
     setLeads((prev) => prev.map((l) => (l._id === id ? updated : l)));
   }
 
   async function convertLead(id) {
-    if (!API) throw new Error("Missing API base URL");
-
     const res = await fetch(`${API}/leads/${id}/convert`, { method: "POST" });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || "Convert failed");
-    }
+    await jsonOrThrow(res);
 
-    // Reload list
-    await loadLeads();
+    // refresh list
+    const res2 = await fetch(`${API}/leads`);
+    const fresh = await jsonOrThrow(res2);
+    setLeads(Array.isArray(fresh) ? fresh : []);
   }
 
   if (loading) {
@@ -118,11 +113,6 @@ export default function Leads() {
           <p className="mt-1 text-sm text-slate-500">
             Search + filters = instant “this is real” feeling.
           </p>
-          {!API && (
-            <p className="mt-2 text-sm text-red-600">
-              Missing VITE_API_URL (check Vercel env vars + redeploy).
-            </p>
-          )}
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
