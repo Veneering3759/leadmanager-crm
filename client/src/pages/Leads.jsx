@@ -9,21 +9,22 @@ const Badge = ({ children }) => (
 );
 
 export default function Leads() {
+  // IMPORTANT: env var already includes /api
   const API = import.meta.env.VITE_API_URL;
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
-
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [viewLead, setViewLead] = useState(null);
 
   async function loadLeads() {
     setLoading(true);
     try {
-      const fresh = await fetch(`${API}/api/leads`).then((r) => r.json());
-      setLeads(fresh);
+      const res = await fetch(`${API}/leads`);
+      if (!res.ok) throw new Error("Failed to fetch leads");
+      const data = await res.json();
+      setLeads(data);
     } catch (err) {
       console.error(err);
       alert("Failed to load leads from server.");
@@ -34,12 +35,10 @@ export default function Leads() {
 
   useEffect(() => {
     loadLeads();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-
     return leads.filter((row) => {
       const matchesQuery =
         !q ||
@@ -47,13 +46,12 @@ export default function Leads() {
         (row.email || "").toLowerCase().includes(q);
 
       const matchesStatus = status === "all" || row.status === status;
-
       return matchesQuery && matchesStatus;
     });
   }, [query, status, leads]);
 
   async function updateLeadStatus(id, nextStatus) {
-    const res = await fetch(`${API}/api/leads/${id}/status`, {
+    const res = await fetch(`${API}/leads/${id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: nextStatus }),
@@ -65,14 +63,13 @@ export default function Leads() {
     }
 
     const updated = await res.json();
-
     setLeads((prev) => prev.map((l) => (l._id === id ? updated : l)));
   }
 
   async function convertLead(id) {
-    await fetch(`${API}/api/leads/${id}/convert`, { method: "POST" });
-    const fresh = await fetch(`${API}/api/leads`).then((r) => r.json());
-    setLeads(fresh);
+    const res = await fetch(`${API}/leads/${id}/convert`, { method: "POST" });
+    if (!res.ok) throw new Error("Convert failed");
+    loadLeads();
   }
 
   if (loading) {
@@ -146,25 +143,20 @@ export default function Leads() {
                   {row.name}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{row.email}</td>
-
                 <td className="px-4 py-3">
                   <Badge>{row.status}</Badge>
                 </td>
-
                 <td className="px-4 py-3">
                   <Badge>{row.source || "website"}</Badge>
                 </td>
-
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
                     <select
                       value={row.status}
                       onChange={async (e) => {
-                        const nextStatus = e.target.value;
                         try {
-                          await updateLeadStatus(row._id, nextStatus);
-                        } catch (err) {
-                          console.error(err);
+                          await updateLeadStatus(row._id, e.target.value);
+                        } catch {
                           alert("Could not update status.");
                         }
                       }}
@@ -184,14 +176,7 @@ export default function Leads() {
                     </button>
 
                     <button
-                      onClick={async () => {
-                        try {
-                          await convertLead(row._id);
-                        } catch (err) {
-                          console.error(err);
-                          alert("Convert failed.");
-                        }
-                      }}
+                      onClick={() => convertLead(row._id)}
                       className="rounded-xl bg-slate-900 px-3 py-1 text-white"
                     >
                       Convert
@@ -228,31 +213,9 @@ export default function Leads() {
                 Close
               </button>
             </div>
-
-            <div className="mt-4 space-y-2 text-sm">
-              <div>
-                <div className="text-slate-500">Business</div>
-                <div className="font-medium">{viewLead.business || "—"}</div>
-              </div>
-
-              <div>
-                <div className="text-slate-500">Message</div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  {viewLead.message || "—"}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500">Status:</span>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">
-                  {viewLead.status}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
-
