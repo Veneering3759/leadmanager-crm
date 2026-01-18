@@ -8,30 +8,17 @@ const Badge = ({ children }) => (
   </span>
 );
 
-function getApiBase() {
-  // You can set VITE_API_URL as:
-  // 1) https://crm-dashboard-olqp.onrender.com
-  // OR
-  // 2) https://crm-dashboard-olqp.onrender.com/api
-  //
-  // This function normalizes so we ALWAYS end up with ".../api"
-  const raw = (import.meta.env.VITE_API_URL || "").trim();
+function normalizeApiBase(raw) {
+  const v = (raw || "").trim().replace(/\/+$/, ""); // remove trailing slashes
 
-  // Local dev fallback (optional, but helpful)
-  const fallback = "http://localhost:5000/api";
-
-  const base = (raw || fallback).replace(/\/+$/, ""); // remove trailing slashes
-  return base.endsWith("/api") ? base : `${base}/api`;
-}
-
-async function jsonOrThrow(res) {
-  if (res.ok) return res.json();
-  const text = await res.text().catch(() => "");
-  throw new Error(text || `Request failed (${res.status})`);
+  // If user accidentally set VITE_API_URL to ".../api", keep it as-is.
+  // Otherwise append "/api".
+  if (v.endsWith("/api")) return v;
+  return `${v}/api`;
 }
 
 export default function Leads() {
-  const API = getApiBase();
+  const API = normalizeApiBase(import.meta.env.VITE_API_URL);
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -45,8 +32,12 @@ export default function Leads() {
     setLoading(true);
     try {
       const res = await fetch(`${API}/leads`);
-      const fresh = await jsonOrThrow(res);
-      setLeads(Array.isArray(fresh) ? fresh : []);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+      const fresh = await res.json();
+      setLeads(fresh);
     } catch (err) {
       console.error("Load leads failed:", err);
       alert("Failed to load leads from server.");
@@ -82,18 +73,22 @@ export default function Leads() {
       body: JSON.stringify({ status: nextStatus }),
     });
 
-    const updated = await jsonOrThrow(res);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "Status update failed");
+    }
+
+    const updated = await res.json();
     setLeads((prev) => prev.map((l) => (l._id === id ? updated : l)));
   }
 
   async function convertLead(id) {
     const res = await fetch(`${API}/leads/${id}/convert`, { method: "POST" });
-    await jsonOrThrow(res);
-
-    // refresh list
-    const res2 = await fetch(`${API}/leads`);
-    const fresh = await jsonOrThrow(res2);
-    setLeads(Array.isArray(fresh) ? fresh : []);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || "Convert failed");
+    }
+    await loadLeads();
   }
 
   if (loading) {
