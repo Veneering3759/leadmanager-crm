@@ -1,3 +1,5 @@
+console.log("VITE_API_URL (prod) =", import.meta.env.VITE_API_URL);
+
 import { useEffect, useState } from "react";
 
 const Badge = ({ children }) => (
@@ -11,13 +13,22 @@ export default function Clients() {
   const [loading, setLoading] = useState(true);
 
   async function load() {
+  try {
     setLoading(true);
-    const data = await fetch("http://localhost:5000/api/clients").then((r) =>
-      r.json()
-    );
+
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/clients`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
     setClients(data);
+  } catch (err) {
+    console.error("Failed to load clients:", err);
+    setClients([]); // optional
+  } finally {
     setLoading(false);
   }
+}
+
 
   useEffect(() => {
     load();
