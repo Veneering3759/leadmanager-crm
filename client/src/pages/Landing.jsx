@@ -1,3 +1,5 @@
+import { apiUrl } from "../lib/api";
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -24,7 +26,8 @@ export default function Landing() {
   e.preventDefault();
 
   try {
-    const res = await fetch("http://localhost:5000/api/leads", {
+    const res = await fetch(apiUrl("/api/leads"), {
+
       method: "POST",
       headers: {
         "Content-Type": "application/json",

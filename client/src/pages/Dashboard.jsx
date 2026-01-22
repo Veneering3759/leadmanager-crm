@@ -1,3 +1,5 @@
+import { apiUrl } from "../lib/api";
+
 import { useEffect, useState } from "react";
 
 export default function Dashboard() {
@@ -5,7 +7,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/leads")
+    fetch(apiUrl("/api/leads"))
+
       .then((res) => res.json())
       .then((data) => {
         setLeads(data);
