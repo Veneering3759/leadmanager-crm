@@ -1,6 +1,6 @@
+import { useEffect, useState } from "react";
 console.log("VITE_API_URL (prod) =", import.meta.env.VITE_API_URL);
 
-import { useEffect, useState } from "react";
 
 const Badge = ({ children }) => (
   <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
