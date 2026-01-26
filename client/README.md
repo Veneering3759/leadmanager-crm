@@ -1,16 +1,72 @@
-# React + Vite
+# LeadManager CRM
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**LeadManager** is a full-stack CRM demo built by **DANIEL ARYEE**.  
+It demonstrates real-world patterns for managing leads, converting them into clients, and handling production-ready UI states.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Live Demo
+- Frontend: (add Vercel URL here)
+- Backend API: (add Render URL here)
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ Features
 
-## Expanding the ESLint configuration
+### Leads
+- Create new leads
+- Search and filter by status
+- Update lead status (new → contacted → qualified → closed)
+- Convert leads into clients
+- Delete leads with confirmation
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Clients
+- Automatically created from converted leads
+- Read-only client list with notes and source tracking
+
+### UI / UX
+- Modal-based forms
+- Confirmation dialogs for destructive actions
+- Skeleton loaders while fetching data
+- Graceful error handling and retry states
+
+---
+
+## 🧱 Tech Stack
+
+### Frontend
+- React (Vite)
+- Tailwind CSS
+- React Router
+- Fetch API (centralized via `apiFetch`)
+
+### Backend
+- Node.js
+- Express
+- MongoDB (Mongoose)
+- REST API
+
+### Deployment
+- Frontend: Vercel
+- Backend: Render
+
+---
+
+## 🧠 Architecture Notes
+
+- **Centralized API layer** (`apiFetch`) handles:
+  - Base URL configuration
+  - JSON parsing
+  - Error handling
+- UI state is kept local and explicit (loading, error, empty states)
+- Modals are controlled via state (no global stores needed)
+- Server follows REST conventions with clear routes
+
+---
+
+## 🛠️ Running Locally
+
+### 1. Clone repo
+```bash
+git clone https://github.com/Veneering3759/crm-dashboard.git
+cd crm-dashboard

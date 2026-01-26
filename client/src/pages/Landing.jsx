@@ -253,7 +253,8 @@ export default function Landing() {
 
       <footer className="bg-slate-50">
         <div className="mx-auto max-w-6xl px-4 py-8 text-xs text-slate-500">
-          © {new Date().getFullYear()} LeadManager — Portfolio project
+          © {new Date().getFullYear()} DANIEL ARYEE — LeadManager (Portfolio project)
+
         </div>
       </footer>
     </div>

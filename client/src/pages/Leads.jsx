@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
 import TableSkeleton from "../components/TableSkeleton";
 import ErrorBanner from "../components/ErrorBanner";
+import LeadFormModal from "../components/LeadFormModal";
+import ConfirmModal from "../components/ConfirmModal";
 
 const STATUS = ["all", "new", "contacted", "qualified", "closed"];
 
@@ -20,6 +22,12 @@ export default function Leads() {
 
   const [error, setError] = useState("");
   const [viewLead, setViewLead] = useState(null);
+
+  const [addOpen, setAddOpen] = useState(false);
+
+  // ✅ DELETE state (MUST be here, not inside JSX)
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function loadLeads() {
     try {
@@ -67,6 +75,20 @@ export default function Leads() {
   async function convertLead(id) {
     await apiFetch(`/api/leads/${id}/convert`, { method: "POST" });
     await loadLeads();
+  }
+
+  async function deleteLead(id) {
+    try {
+      setDeleting(true);
+      await apiFetch(`/api/leads/${id}`, { method: "DELETE" });
+      setDeleteTarget(null);
+      await loadLeads();
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || "Failed to delete lead");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (loading) {
@@ -129,9 +151,7 @@ export default function Leads() {
 
           <button
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            onClick={() =>
-              alert("Next in Phase 2: Add Lead modal + POST /api/leads")
-            }
+            onClick={() => setAddOpen(true)}
           >
             + Add Lead
           </button>
@@ -139,7 +159,11 @@ export default function Leads() {
       </div>
 
       {error && (
-        <ErrorBanner title="Couldn’t load leads" message={error} onRetry={loadLeads} />
+        <ErrorBanner
+          title="Couldn’t load leads"
+          message={error}
+          onRetry={loadLeads}
+        />
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200">
@@ -211,6 +235,14 @@ export default function Leads() {
                     >
                       Convert
                     </button>
+
+                    {/* ✅ Delete button */}
+                    <button
+                      onClick={() => setDeleteTarget(row)}
+                      className="rounded-xl border border-red-200 px-3 py-1 text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -267,7 +299,27 @@ export default function Leads() {
           </div>
         </div>
       )}
+
+      {/* ✅ Add Lead Modal */}
+      <LeadFormModal
+      open={addOpen}
+      onClose={() => setAddOpen(false)}
+      onCreated={loadLeads}
+/>
+
+
+      {/* ✅ Confirm Delete Modal */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete lead?"
+        message={`This will permanently delete "${deleteTarget?.name}". This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        danger
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => deleteLead(deleteTarget._id)}
+      />
     </div>
   );
 }
-

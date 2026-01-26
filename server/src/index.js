@@ -116,6 +116,20 @@ app.patch("/api/leads/:id/status", async (req, res) => {
     res.status(500).json({ error: "server error" });
   }
 });
+// Delete lead
+app.delete("/api/leads/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deleted = await Lead.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ error: "Lead not found" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server error" });
+  }
+});
 
 // List clients
 app.get("/api/clients", async (req, res) => {

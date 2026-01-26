@@ -20,7 +20,9 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-6xl px-4 py-6">
+        {/* Main app layout */}
         <div className="grid gap-6 md:grid-cols-[240px_1fr]">
+          {/* Sidebar */}
           <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-4 text-lg font-semibold text-slate-900">
               LeadManager
@@ -34,9 +36,17 @@ export default function AppLayout() {
             </nav>
           </aside>
 
-          <main className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          {/* Main content */}
+          <main className="min-w-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <Outlet />
           </main>
+        </div>
+
+        {/* Footer / attribution */}
+        <div className="mt-6 rounded-xl bg-slate-50 p-3 text-center text-xs text-slate-600">
+          Built by{" "}
+          <span className="font-semibold text-slate-900">DANIEL ARYEE</span>
+          <div className="mt-1 text-slate-500">Portfolio project</div>
         </div>
       </div>
     </div>
