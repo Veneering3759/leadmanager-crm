@@ -22,7 +22,8 @@ app.get("/", (req, res) => {
 const LeadSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true },
+    // ✅ change: normalize email
+    email: { type: String, required: true, trim: true, lowercase: true },
     business: { type: String, default: "", trim: true },
     message: { type: String, default: "", trim: true },
     status: {
@@ -41,11 +42,19 @@ const Lead = mongoose.model("Lead", LeadSchema);
 const ClientSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true }, // client/company name
-    email: { type: String, required: true, trim: true },
+    // ✅ change: normalize email
+    email: { type: String, required: true, trim: true, lowercase: true },
     business: { type: String, default: "", trim: true },
     notes: { type: String, default: "", trim: true },
     source: { type: String, default: "converted", trim: true },
-    sourceLeadId: { type: mongoose.Schema.Types.ObjectId, ref: "Lead" },
+
+    // ✅ change: enforce "one client per lead" at DB level
+    sourceLeadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
+      unique: true,
+      sparse: true,
+    },
   },
   { timestamps: true }
 );
@@ -116,6 +125,7 @@ app.patch("/api/leads/:id/status", async (req, res) => {
     res.status(500).json({ error: "server error" });
   }
 });
+
 // Delete lead
 app.delete("/api/leads/:id", async (req, res) => {
   try {
@@ -150,10 +160,9 @@ app.post("/api/leads/:id/convert", async (req, res) => {
     const lead = await Lead.findById(id);
     if (!lead) return res.status(404).json({ error: "Lead not found" });
 
-    // Prevent duplicate conversion
+    // Prevent duplicate conversion (app-level)
     const existing = await Client.findOne({ sourceLeadId: id });
     if (existing) {
-      // Ensure lead is closed too
       if (lead.status !== "closed") {
         lead.status = "closed";
         await lead.save();
@@ -170,12 +179,19 @@ app.post("/api/leads/:id/convert", async (req, res) => {
       sourceLeadId: lead._id,
     });
 
-    // Mark lead closed (keep it for history/pipeline)
+    // Mark lead closed
     lead.status = "closed";
     await lead.save();
 
     res.status(201).json({ ok: true, client });
   } catch (err) {
+    // ✅ if Mongo rejects duplicate because of unique index
+    if (err?.code === 11000) {
+      return res
+        .status(409)
+        .json({ error: "This lead was already converted." });
+    }
+
     console.error(err);
     res.status(500).json({ error: "server error" });
   }
