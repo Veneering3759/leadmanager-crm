@@ -211,6 +211,40 @@ async function start() {
 
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("✅ MongoDB connected");
+app.get("/api/stats", async (req, res) => {
+  try {
+    const totalLeads = await Lead.countDocuments();
+    const totalClients = await Client.countDocuments();
+
+    const leadsByStatusAgg = await Lead.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+
+    const statusMap = leadsByStatusAgg.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    const leadsByStatus = {
+      new: statusMap.new || 0,
+      contacted: statusMap.contacted || 0,
+      qualified: statusMap.qualified || 0,
+      closed: statusMap.closed || 0,
+    };
+
+    const conversionRate =
+      totalLeads === 0 ? 0 : Math.round((totalClients / totalLeads) * 100);
+
+    res.json({
+      totalLeads,
+      totalClients,
+      conversionRate,
+      leadsByStatus,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load stats" });
+  }
+});
 
     app.listen(PORT, () => {
       console.log(`✅ API listening on http://localhost:${PORT}`);
