@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
+import { Link } from "react-router-dom";
 
 function Badge({ tone = "slate", children }) {
   const tones = {
@@ -23,7 +24,7 @@ function Badge({ tone = "slate", children }) {
 
 function Card({ title, subtitle, children, right }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-900">{title}</div>
@@ -39,14 +40,58 @@ function Card({ title, subtitle, children, right }) {
   );
 }
 
-function Row({ label, value }) {
+function Row({ label, value, mono = false }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2">
       <div className="text-sm text-slate-500">{label}</div>
-      <div className="min-w-0 text-right text-sm font-medium text-slate-900">
+      <div
+        className={`min-w-0 text-right text-sm font-medium text-slate-900 ${
+          mono ? "font-mono text-xs" : ""
+        }`}
+      >
         <span className="break-all">{value}</span>
       </div>
     </div>
+  );
+}
+
+function LinkCard({ title, subtitle, href, to, external = false }) {
+  const common =
+    "group rounded-2xl border border-slate-200 bg-white p-4 text-left hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-slate-300";
+  const titleCls =
+    "text-sm font-semibold text-slate-900 group-hover:text-slate-950";
+  const subCls = "mt-1 text-xs text-slate-500";
+
+  if (to) {
+    return (
+      <Link to={to} className={common}>
+        <div className={titleCls}>{title}</div>
+        <div className={subCls}>{subtitle}</div>
+      </Link>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
+      className={common}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className={titleCls}>{title}</div>
+          <div className={subCls}>{subtitle}</div>
+        </div>
+
+        {/* subtle external indicator */}
+        {external ? (
+          <span className="mt-0.5 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700 ring-1 ring-inset ring-slate-200">
+            opens
+          </span>
+        ) : null}
+      </div>
+    </a>
   );
 }
 
@@ -66,11 +111,9 @@ export default function Settings() {
       setError("");
       setChecking(true);
 
-      // If this fails, backend URL/env is wrong or backend is down
       const h = await apiFetch("/healthz");
       setHealth(h);
 
-      // Stats is a real DB-backed endpoint
       const s = await apiFetch("/api/stats");
       setStats(s);
     } catch (e) {
@@ -102,6 +145,18 @@ export default function Settings() {
     ? "Checking…"
     : "Connected";
 
+  const snapshotText = stats
+    ? `Leads: ${stats.totalLeads}, Clients: ${stats.totalClients}, Conversion: ${stats.conversionRate}%`
+    : "—";
+
+  // Update these once and you're done (no more “Replace this link”)
+  const LINKS = {
+    marketing: "/", // internal route
+    dashboard: "/app", // internal route
+    github: "https://github.com/Veneering3759/leadmanager-crm",
+    linkedin: "https://www.linkedin.com/in/daniel-a-869619399/",
+  };
+
   return (
     <div className="min-w-0">
       {/* Header */}
@@ -109,7 +164,7 @@ export default function Settings() {
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Environment checks, project links, and product roadmap.
+            Environment checks, project links, and a concise product brief.
           </p>
         </div>
 
@@ -140,7 +195,7 @@ export default function Settings() {
         {/* Connection */}
         <Card
           title="Backend connection"
-          subtitle="Live status + database-backed check (stats)."
+          subtitle="Live health check + database-backed stats."
           right={
             checking ? (
               <Badge tone="blue">Running…</Badge>
@@ -152,84 +207,70 @@ export default function Settings() {
           }
         >
           <div className="divide-y divide-slate-100">
-            <Row label="API base URL" value={apiBase || "—"} />
+            <Row label="API base URL" value={apiBase || "—"} mono />
             <Row
               label="Health endpoint"
               value={health ? JSON.stringify(health) : "—"}
+              mono
             />
-            <Row
-              label="Stats snapshot"
-              value={
-                stats
-                  ? `Leads: ${stats.totalLeads}, Clients: ${stats.totalClients}, Conversion: ${stats.conversionRate}%`
-                  : "—"
-              }
-            />
-          </div>
-        </Card>
-
-        {/* Project */}
-        <Card
-          title="Project links"
-          subtitle="Make it easy for recruiters to click around."
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <a
-              href="/"
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
-            >
-              Open marketing site
-              <div className="mt-1 text-xs text-slate-500">Landing page</div>
-            </a>
-
-            <a
-              href="/app"
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
-            >
-              Open dashboard
-              <div className="mt-1 text-xs text-slate-500">App experience</div>
-            </a>
-
-            <a
-              href="https://github.com/Veneering3759/leadmanager-crm"
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
-            >
-              GitHub repo
-              <div className="mt-1 text-xs text-slate-500">
-                Replace this link
-              </div>
-            </a>
-
-            <a
-              href="https://www.linkedin.com/in/daniel-a-869619399/"
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-900 hover:bg-slate-50"
-            >
-              LinkedIn
-              <div className="mt-1 text-xs text-slate-500">
-                Replace this link
-              </div>
-            </a>
+            <Row label="Stats snapshot" value={snapshotText} />
           </div>
 
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            <div className="font-semibold text-slate-900">Recruiter tip</div>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="font-semibold text-slate-900">Portfolio note</div>
+              <Badge tone="slate">Read-only setup</Badge>
+            </div>
             <div className="mt-1 text-slate-600">
-              Add a short “Case Study” on your portfolio: problem → solution →
-              architecture → trade-offs. It makes this feel like a shipped
-              product, not a tutorial.
+              This instance is deployed to demonstrate a realistic full-stack
+              workflow: API wiring, data modeling, and a production UI pattern.
             </div>
           </div>
         </Card>
 
-        {/* Stack */}
+        {/* Project links */}
         <Card
-          title="Tech stack"
-          subtitle="A quick “at a glance” snapshot."
+          title="Project links"
+          subtitle="One-click navigation for recruiters."
         >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <LinkCard
+              title="Marketing site"
+              subtitle="Portfolio landing page"
+              to={LINKS.marketing}
+            />
+            <LinkCard
+              title="Dashboard"
+              subtitle="Live app experience"
+              to={LINKS.dashboard}
+            />
+            <LinkCard
+              title="GitHub repository"
+              subtitle="Source code + setup instructions"
+              href={LINKS.github}
+              external
+            />
+            <LinkCard
+              title="LinkedIn"
+              subtitle="Professional profile"
+              href={LINKS.linkedin}
+              external
+            />
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <div className="font-semibold text-slate-900">Recruiter note</div>
+            <div className="mt-1 text-slate-600">
+              LeadManager is a production-style mini CRM built to demonstrate
+              clean UI architecture, REST API design, and real deployment
+              workflows (Vercel + Render). Key flows include lead CRUD, pipeline
+              status updates, and lead → client conversion with live metrics.
+            </div>
+          </div>
+        </Card>
+
+        {/* Tech stack */}
+        <Card title="Tech stack" subtitle="At-a-glance snapshot.">
           <div className="flex flex-wrap gap-2">
             <Badge tone="slate">React</Badge>
             <Badge tone="slate">Vite</Badge>
@@ -246,7 +287,7 @@ export default function Settings() {
             <ul className="mt-2 list-disc space-y-1 pl-5">
               <li>Full CRUD flows + conversion (lead → client)</li>
               <li>Dashboard metrics (stats endpoint)</li>
-              <li>Responsive UI (table + mobile cards)</li>
+              <li>Responsive UI (desktop table + mobile cards)</li>
               <li>Production deployments (Render + Vercel env wiring)</li>
             </ul>
           </div>
@@ -255,7 +296,7 @@ export default function Settings() {
         {/* Roadmap */}
         <Card
           title="Roadmap"
-          subtitle="Small additions that make it feel “enterprise” without being huge."
+          subtitle="High-impact additions that keep scope sane."
         >
           <div className="space-y-3 text-sm">
             <div className="flex items-start gap-3">
@@ -263,7 +304,8 @@ export default function Settings() {
               <div>
                 <div className="font-semibold text-slate-900">Activity feed</div>
                 <div className="text-slate-600">
-                  Log events like “status updated”, “lead converted”, “note added”.
+                  Log events like “status updated”, “lead converted”, “lead
+                  deleted”, and show a timeline on the dashboard.
                 </div>
               </div>
             </div>
@@ -283,7 +325,7 @@ export default function Settings() {
               <div>
                 <div className="font-semibold text-slate-900">Auth</div>
                 <div className="text-slate-600">
-                  Protect user data + demonstrate backend authorization.
+                  User accounts + authorization to protect data access.
                 </div>
               </div>
             </div>
