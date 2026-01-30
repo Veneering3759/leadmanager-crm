@@ -1,87 +1,92 @@
 # LeadManager CRM
 
-**LeadManager CRM** is a production-ready, full-stack CRM built to demonstrate clean UI patterns, REST API design, and real-world cloud deployment workflows.
+A production-ready, full-stack CRM built to demonstrate clean UI patterns, REST API design, and real-world cloud deployment workflows.
 
 **Live Demo:** https://crm-dashboard-navy.vercel.app  
-**Frontend:** Vite + React + Tailwind  
-**Backend:** Node.js + Express + MongoDB (Mongoose)
+**Frontend:** React (Vite) + Tailwind  
+**Backend:** Node.js + Express + MongoDB (Mongoose)  
+**Deploy:** Vercel (frontend) + Render (API)
 
 ---
 
-## ✨ Why this project exists
+## Why this project exists
 
 Many small teams still manage leads in spreadsheets or inboxes, which leads to missed follow-ups, lost context, and unclear pipelines.
 
-LeadManager CRM solves this by providing:
+LeadManager addresses that by providing a lightweight CRM experience:
 - A centralized lead dashboard
 - Clear status workflows
-- Fast search and filtering
+- Fast search & filtering
 - One-click lead → client conversion
 
-Built to demonstrate **real-world UI patterns, API design, and deployment workflows**.
+Built to reflect realistic UI + API patterns without enterprise bloat.
 
 ---
 
-## 🧱 Tech Stack
+## Core features
 
-### Frontend
+- Lead CRUD with validation (name + email required)
+- Search + filtering (name, email, business)
+- Pipeline status workflow: **new → contacted → qualified → closed**
+- Convert leads into clients (audit-friendly conversion behavior)
+- Delete confirmation modal (prevents accidental destructive actions)
+- Responsive UI: mobile cards + desktop tables
+- Live backend connectivity checks (**/healthz**, **/api/stats**) inside Settings
+
+---
+
+## API endpoints
+
+**Leads**
+- `POST /api/leads`
+- `GET /api/leads`
+- `PATCH /api/leads/:id/status`
+- `DELETE /api/leads/:id`
+- `POST /api/leads/:id/convert`
+
+**Dashboard**
+- `GET /api/stats`
+
+**Clients**
+- `GET /api/clients`
+
+---
+
+## Tech stack
+
+**Frontend**
 - React (Vite)
 - Tailwind CSS
 - Component-based UI
-- Centralized API helper
+- Centralized API helper for environment-based configuration
 
-### Backend
+**Backend**
 - Node.js + Express
-- RESTful API design
+- REST API design
 - MongoDB Atlas
 - Mongoose models
 
-### Deployment
-- Frontend: Vercel
-- Backend: Render (cold start on first request)
+**Deployment**
+- Vercel (frontend)
+- Render (backend — may cold start on first request)
 
 ---
 
-## 🔑 Core Features
+## What this demonstrates
 
-- Create leads with required validation
-- Search and filter leads by name, email, or business
-- Status workflow: New → Contacted → Qualified → Closed
-- Convert leads into clients (read-only client list)
-- Delete confirmation modal to prevent accidental actions
-- Responsive tables (no horizontal scrolling)
-
----
-
-## 📊 API Endpoints
-
-POST /api/leads
-GET /api/leads
-PATCH /api/leads/:id/status
-DELETE /api/leads/:id
-POST /api/leads/:id/convert
-GET /api/clients
-
-
----
-
-## 🎯 What this demonstrates
-
-- Production UI patterns (modals, inline editing, badges)
+- Production UI patterns (modals, inline editing, badges, empty states)
 - Clean REST API design with predictable responses
-- State-driven layouts
-- Environment-based configuration
-- Deployment-ready architecture
+- Environment-based configuration (Vercel env var wiring)
+- Real deployment workflows (Render + Vercel integration)
 
 ---
 
-## 📝 Notes
+## Notes
 
-- First request may be slow due to Render cold start.
-- Subsequent requests are fast.
+Render may cold start on the first request. Subsequent requests are fast.
 
 ---
 
-## 📎 License
+## License
 
-MIT License
+MIT
