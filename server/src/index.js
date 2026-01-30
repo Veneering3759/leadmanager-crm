@@ -63,15 +63,20 @@ const ClientSchema = new mongoose.Schema(
 
 const Client = mongoose.model("Client", ClientSchema);
 
-// ✅ Activity schema/model (NEW)
+// Activity schema/model (NEW)
 const ActivitySchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["lead_created", "lead_status_updated", "lead_converted", "lead_deleted"],
+      enum: ["lead_created", "status_updated", "lead_converted", "lead_deleted"],
       required: true,
     },
-    title: { type: String, required: true, trim: true },
+    message: { type: String, required: true, trim: true },
+
+    // Optional references (nice for future “click to view”)
+    leadId: { type: mongoose.Schema.Types.ObjectId, ref: "Lead" },
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: "Client" },
+
     meta: { type: Object, default: {} },
   },
   { timestamps: true }
@@ -79,13 +84,12 @@ const ActivitySchema = new mongoose.Schema(
 
 const Activity = mongoose.model("Activity", ActivitySchema);
 
-// ✅ helper (NEW)
-async function logActivity(type, title, meta = {}) {
+// Helper: never break main requests if logging fails
+async function logActivity(payload) {
   try {
-    await Activity.create({ type, title, meta });
+    await Activity.create(payload);
   } catch (err) {
-    // Never break the main request if activity logging fails
-    console.error("Activity log failed:", err);
+    console.error("⚠️ Activity log failed:", err?.message || err);
   }
 }
 
@@ -96,7 +100,8 @@ async function logActivity(type, title, meta = {}) {
 // Create lead
 app.post("/api/leads", async (req, res) => {
   try {
-    const { name, email, business = "", message = "", source = "website" } = req.body;
+    const { name, email, business = "", message = "", source = "website" } =
+      req.body;
 
     if (!name || !email) {
       return res.status(400).json({ error: "name and email are required" });
@@ -111,12 +116,11 @@ app.post("/api/leads", async (req, res) => {
       source,
     });
 
-    // ✅ activity
-    await logActivity("lead_created", `New lead: ${lead.name}`, {
+    await logActivity({
+      type: "lead_created",
+      message: `Lead created: ${lead.name}`,
       leadId: lead._id,
-      email: lead.email,
-      business: lead.business,
-      source: lead.source,
+      meta: { email: lead.email, business: lead.business, source: lead.source },
     });
 
     res.status(201).json(lead);
@@ -148,21 +152,18 @@ app.patch("/api/leads/:id/status", async (req, res) => {
     }
 
     const existing = await Lead.findById(req.params.id);
-    if (!existing) {
-      return res.status(404).json({ error: "Lead not found" });
-    }
+    if (!existing) return res.status(404).json({ error: "Lead not found" });
 
     const prevStatus = existing.status;
-
     existing.status = status;
     const updated = await existing.save();
 
-    // ✅ activity
-    await logActivity(
-      "lead_status_updated",
-      `Lead status updated: ${updated.name} (${prevStatus} → ${status})`,
-      { leadId: updated._id, from: prevStatus, to: status }
-    );
+    await logActivity({
+      type: "status_updated",
+      message: `Status updated: ${updated.name} (${prevStatus} → ${updated.status})`,
+      leadId: updated._id,
+      meta: { from: prevStatus, to: updated.status },
+    });
 
     res.json(updated);
   } catch (err) {
@@ -179,10 +180,10 @@ app.delete("/api/leads/:id", async (req, res) => {
 
     await Lead.findByIdAndDelete(req.params.id);
 
-    // ✅ activity
-    await logActivity("lead_deleted", `Lead deleted: ${lead.name}`, {
-      leadId: lead._id,
-      email: lead.email,
+    await logActivity({
+      type: "lead_deleted",
+      message: `Lead deleted: ${lead.name}`,
+      meta: { email: lead.email },
     });
 
     res.json({ ok: true });
@@ -209,19 +210,13 @@ app.post("/api/leads/:id/convert", async (req, res) => {
     const lead = await Lead.findById(req.params.id);
     if (!lead) return res.status(404).json({ error: "Lead not found" });
 
+    // If already converted, return existing client
     const existing = await Client.findOne({ sourceLeadId: lead._id });
     if (existing) {
       if (lead.status !== "closed") {
         lead.status = "closed";
         await lead.save();
       }
-
-      // ✅ activity (still log)
-      await logActivity("lead_converted", `Lead already converted: ${lead.name}`, {
-        leadId: lead._id,
-        clientId: existing._id,
-        alreadyConverted: true,
-      });
 
       return res.json({ ok: true, client: existing, alreadyConverted: true });
     }
@@ -238,16 +233,20 @@ app.post("/api/leads/:id/convert", async (req, res) => {
     lead.status = "closed";
     await lead.save();
 
-    // ✅ activity
-    await logActivity("lead_converted", `Lead converted to client: ${lead.name}`, {
+    await logActivity({
+      type: "lead_converted",
+      message: `Lead converted: ${lead.name} → Client`,
       leadId: lead._id,
       clientId: client._id,
+      meta: { business: lead.business || "", source: lead.source },
     });
 
     res.status(201).json({ ok: true, client });
   } catch (err) {
     if (err?.code === 11000) {
-      return res.status(409).json({ error: "This lead was already converted." });
+      return res
+        .status(409)
+        .json({ error: "This lead was already converted." });
     }
 
     console.error(err);
@@ -255,7 +254,9 @@ app.post("/api/leads/:id/convert", async (req, res) => {
   }
 });
 
+// =========================
 // Dashboard stats
+// =========================
 app.get("/api/stats", async (req, res) => {
   try {
     const totalLeads = await Lead.countDocuments();
@@ -273,7 +274,8 @@ app.get("/api/stats", async (req, res) => {
     res.json({
       totalLeads,
       totalClients,
-      conversionRate: totalLeads === 0 ? 0 : Math.round((totalClients / totalLeads) * 100),
+      conversionRate:
+        totalLeads === 0 ? 0 : Math.round((totalClients / totalLeads) * 100),
       leadsByStatus: {
         new: statusMap.new || 0,
         contacted: statusMap.contacted || 0,
@@ -287,10 +289,13 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
-// ✅ Activity feed endpoint (NEW)
+// =========================
+// Activity feed endpoint (NEW)
+// =========================
 app.get("/api/activity", async (req, res) => {
   try {
-    const items = await Activity.find().sort({ createdAt: -1 }).limit(40);
+    const limit = Math.min(parseInt(req.query.limit || "40", 10), 100);
+    const items = await Activity.find().sort({ createdAt: -1 }).limit(limit);
     res.json(items);
   } catch (err) {
     console.error(err);
